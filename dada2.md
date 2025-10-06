@@ -286,3 +286,224 @@ head(track)
     ## F3D142  3183     2914      2799      2830   2595    2521
     ## F3D143  3178     2941      2822      2868   2553    2519
     ## F3D144  4827     4312      4151      4228   3646    3507
+
+``` r
+taxa <- assignTaxonomy(seqtab.nochim, "~/dossier_1/silva_nr_v132_train_set.fa.gz", multithread=FALSE)
+```
+
+``` r
+taxa.print <- taxa # Removing sequence rownames for display only
+rownames(taxa.print) <- NULL
+head(taxa.print)
+```
+
+    ##      Kingdom    Phylum          Class         Order           Family          
+    ## [1,] "Bacteria" "Bacteroidetes" "Bacteroidia" "Bacteroidales" "Muribaculaceae"
+    ## [2,] "Bacteria" "Bacteroidetes" "Bacteroidia" "Bacteroidales" "Muribaculaceae"
+    ## [3,] "Bacteria" "Bacteroidetes" "Bacteroidia" "Bacteroidales" "Muribaculaceae"
+    ## [4,] "Bacteria" "Bacteroidetes" "Bacteroidia" "Bacteroidales" "Muribaculaceae"
+    ## [5,] "Bacteria" "Bacteroidetes" "Bacteroidia" "Bacteroidales" "Bacteroidaceae"
+    ## [6,] "Bacteria" "Bacteroidetes" "Bacteroidia" "Bacteroidales" "Muribaculaceae"
+    ##      Genus        
+    ## [1,] NA           
+    ## [2,] NA           
+    ## [3,] NA           
+    ## [4,] NA           
+    ## [5,] "Bacteroides"
+    ## [6,] NA
+
+``` r
+unqs.mock <- seqtab.nochim["Mock",]
+unqs.mock <- sort(unqs.mock[unqs.mock>0], decreasing=TRUE) # Drop ASVs absent in the Mock
+cat("DADA2 inferred", length(unqs.mock), "sample sequences present in the Mock community.\n")
+```
+
+    ## DADA2 inferred 20 sample sequences present in the Mock community.
+
+``` r
+mock.ref <- getSequences(file.path(path, "HMP_MOCK.v35.fasta"))
+match.ref <- sum(sapply(names(unqs.mock), function(x) any(grepl(x, mock.ref))))
+cat("Of those,", sum(match.ref), "were exact matches to the expected reference sequences.\n")
+```
+
+    ## Of those, 20 were exact matches to the expected reference sequences.
+
+``` r
+library(phyloseq); packageVersion("phyloseq")
+```
+
+    ## [1] '1.44.0'
+
+``` r
+library(Biostrings); packageVersion("Biostrings")
+```
+
+    ## Loading required package: BiocGenerics
+
+    ## 
+    ## Attaching package: 'BiocGenerics'
+
+    ## The following objects are masked from 'package:stats':
+    ## 
+    ##     IQR, mad, sd, var, xtabs
+
+    ## The following objects are masked from 'package:base':
+    ## 
+    ##     anyDuplicated, aperm, append, as.data.frame, basename, cbind,
+    ##     colnames, dirname, do.call, duplicated, eval, evalq, Filter, Find,
+    ##     get, grep, grepl, intersect, is.unsorted, lapply, Map, mapply,
+    ##     match, mget, order, paste, pmax, pmax.int, pmin, pmin.int,
+    ##     Position, rank, rbind, Reduce, rownames, sapply, setdiff, sort,
+    ##     table, tapply, union, unique, unsplit, which.max, which.min
+
+    ## Loading required package: S4Vectors
+
+    ## Loading required package: stats4
+
+    ## 
+    ## Attaching package: 'S4Vectors'
+
+    ## The following object is masked from 'package:utils':
+    ## 
+    ##     findMatches
+
+    ## The following objects are masked from 'package:base':
+    ## 
+    ##     expand.grid, I, unname
+
+    ## Loading required package: IRanges
+
+    ## 
+    ## Attaching package: 'IRanges'
+
+    ## The following object is masked from 'package:phyloseq':
+    ## 
+    ##     distance
+
+    ## Loading required package: XVector
+
+    ## Loading required package: GenomeInfoDb
+
+    ## 
+    ## Attaching package: 'Biostrings'
+
+    ## The following object is masked from 'package:base':
+    ## 
+    ##     strsplit
+
+    ## [1] '2.68.1'
+
+``` r
+library(ggplot2); packageVersion("ggplot2")
+```
+
+    ## [1] '3.4.3'
+
+``` r
+theme_set(theme_bw())
+```
+
+``` r
+samples.out <- rownames(seqtab.nochim)
+subject <- sapply(strsplit(samples.out, "D"), `[`, 1)
+gender <- substr(subject,1,1)
+subject <- substr(subject,2,999)
+day <- as.integer(sapply(strsplit(samples.out, "D"), `[`, 2))
+samdf <- data.frame(Subject=subject, Gender=gender, Day=day)
+samdf$When <- "Early"
+samdf$When[samdf$Day>100] <- "Late"
+rownames(samdf) <- samples.out
+```
+
+``` r
+ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
+               sample_data(samdf), 
+               tax_table(taxa))
+ps <- prune_samples(sample_names(ps) != "Mock", ps) # Remove mock sample
+```
+
+``` r
+dna <- Biostrings::DNAStringSet(taxa_names(ps))
+names(dna) <- taxa_names(ps)
+ps <- merge_phyloseq(ps, dna)
+taxa_names(ps) <- paste0("ASV", seq(ntaxa(ps)))
+ps
+```
+
+    ## phyloseq-class experiment-level object
+    ## otu_table()   OTU Table:         [ 232 taxa and 19 samples ]
+    ## sample_data() Sample Data:       [ 19 samples by 4 sample variables ]
+    ## tax_table()   Taxonomy Table:    [ 232 taxa by 6 taxonomic ranks ]
+    ## refseq()      DNAStringSet:      [ 232 reference sequences ]
+
+``` r
+plot_richness(ps, x="Day", measures=c("Shannon", "Simpson"), color="When")
+```
+
+    ## Warning in estimate_richness(physeq, split = TRUE, measures = measures): The data you have provided does not have
+    ## any singletons. This is highly suspicious. Results of richness
+    ## estimates (for example) are probably unreliable, or wrong, if you have already
+    ## trimmed low-abundance taxa from the data.
+    ## 
+    ## We recommended that you find the un-trimmed data and retry.
+
+![](dada2_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
+
+``` r
+# Transform data to proportions as appropriate for Bray-Curtis distances
+ps.prop <- transform_sample_counts(ps, function(otu) otu/sum(otu))
+ord.nmds.bray <- ordinate(ps.prop, method="NMDS", distance="bray")
+```
+
+    ## Run 0 stress 0.08043117 
+    ## Run 1 stress 0.08043116 
+    ## ... New best solution
+    ## ... Procrustes: rmse 3.899619e-06  max resid 1.007833e-05 
+    ## ... Similar to previous best
+    ## Run 2 stress 0.09477204 
+    ## Run 3 stress 0.1262108 
+    ## Run 4 stress 0.08616061 
+    ## Run 5 stress 0.1228545 
+    ## Run 6 stress 0.08043117 
+    ## ... Procrustes: rmse 1.126793e-06  max resid 2.792991e-06 
+    ## ... Similar to previous best
+    ## Run 7 stress 0.08616061 
+    ## Run 8 stress 0.08076339 
+    ## ... Procrustes: rmse 0.01055681  max resid 0.03249751 
+    ## Run 9 stress 0.08043117 
+    ## ... Procrustes: rmse 1.815697e-06  max resid 5.124952e-06 
+    ## ... Similar to previous best
+    ## Run 10 stress 0.08616061 
+    ## Run 11 stress 0.08616061 
+    ## Run 12 stress 0.08076338 
+    ## ... Procrustes: rmse 0.01053086  max resid 0.03241249 
+    ## Run 13 stress 0.1274325 
+    ## Run 14 stress 0.08076336 
+    ## ... Procrustes: rmse 0.01048289  max resid 0.03225614 
+    ## Run 15 stress 0.08076338 
+    ## ... Procrustes: rmse 0.01053502  max resid 0.03242653 
+    ## Run 16 stress 0.08076341 
+    ## ... Procrustes: rmse 0.01058483  max resid 0.03258892 
+    ## Run 17 stress 0.08616061 
+    ## Run 18 stress 0.08616061 
+    ## Run 19 stress 0.08043117 
+    ## ... Procrustes: rmse 6.123898e-06  max resid 1.691309e-05 
+    ## ... Similar to previous best
+    ## Run 20 stress 0.08076344 
+    ## ... Procrustes: rmse 0.01060909  max resid 0.03266794 
+    ## *** Best solution repeated 4 times
+
+``` r
+plot_ordination(ps.prop, ord.nmds.bray, color="When", title="Bray NMDS")
+```
+
+![](dada2_files/figure-gfm/unnamed-chunk-36-1.png)<!-- -->
+
+``` r
+top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
+ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
+ps.top20 <- prune_taxa(top20, ps.top20)
+plot_bar(ps.top20, x="Day", fill="Family") + facet_wrap(~When, scales="free_x")
+```
+
+![](dada2_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
