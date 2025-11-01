@@ -57,6 +57,12 @@ plotQualityProfile(fnFs[1:2])
 ![](dada2_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
 
 ``` r
+plotQualityProfile(fnRs[1:2])
+```
+
+![](dada2_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+
+``` r
 # Forward and reverse fastq filenames have format: SAMPLENAME_R1_001.fastq and SAMPLENAME_R2_001.fastq
 fnFs <- sort(list.files(path, pattern="_R1_001.fastq", full.names = TRUE))
 fnRs <- sort(list.files(path, pattern="_R2_001.fastq", full.names = TRUE))
@@ -65,17 +71,21 @@ sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
 ```
 
 ``` r
-# Place filtered files in filtered/ subdirectory
-filtFs <- file.path(path, "filtered", paste0(sample.names, "_F_filt.fastq.gz"))
+filtFs <- file.path(path, "filtered", # Crée un chemin vers un sous-dosier "filtered" à l'intérieur du dossier 'path"
+                    paste0(sample.names, "_F_filt.fastq.gz"))# Crée le nom du fichier filtré pour chaque échantillon
+
 filtRs <- file.path(path, "filtered", paste0(sample.names, "_R_filt.fastq.gz"))
 names(filtFs) <- sample.names
-names(filtRs) <- sample.names
+names(filtRs) <- sample.names # Attribution de ces noms aux fichiers
 ```
 
 ``` r
-out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,160),
-              maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
-              compress=TRUE, multithread=FALSE) # On Windows set multithread=FALSE
+out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,160), # Tronque les lectures Forward à 240 bases et Reverse à 160 bases
+              maxN=0, # Elimine toutes lecture contenant une base inconnue
+              maxEE=c(2,2), # Maximum d'erreurs par lecture
+              truncQ=2, # Tronque la lecture dès que son score de qualité est inférieur à 2
+              rm.phix=TRUE, # Supprime les lectures provenant du génome PhiX
+              compress=TRUE, multithread=FALSE) 
 head(out)
 ```
 
@@ -88,13 +98,13 @@ head(out)
     ## F3D144_S210_L001_R1_001.fastq     4827      4312
 
 ``` r
-errF <- learnErrors(filtFs, multithread=FALSE)
+errF <- learnErrors(filtFs, multithread=FALSE)# Modèle statistique des erreurs à partir des lectures filtrées Forward
 ```
 
     ## 33514080 total bases in 139642 reads from 20 samples will be used for learning the error rates.
 
 ``` r
-errR <- learnErrors(filtRs, multithread=FALSE)
+errR <- learnErrors(filtRs, multithread=FALSE)# Modèle statistique des erreurs à partir des lectures filtrées Reverse
 ```
 
     ## 22342720 total bases in 139642 reads from 20 samples will be used for learning the error rates.
@@ -106,7 +116,7 @@ plotErrors(errF, nominalQ=TRUE)
     ## Warning: Transformation introduced infinite values in continuous y-axis
     ## Transformation introduced infinite values in continuous y-axis
 
-![](dada2_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](dada2_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
 ``` r
 errR <- learnErrors(filtRs, multithread=FALSE)
@@ -447,7 +457,7 @@ plot_richness(ps, x="Day", measures=c("Shannon", "Simpson"), color="When")
     ## 
     ## We recommended that you find the un-trimmed data and retry.
 
-![](dada2_files/figure-gfm/unnamed-chunk-34-1.png)<!-- -->
+![](dada2_files/figure-gfm/unnamed-chunk-35-1.png)<!-- -->
 
 ``` r
 # Transform data to proportions as appropriate for Bray-Curtis distances
@@ -456,48 +466,45 @@ ord.nmds.bray <- ordinate(ps.prop, method="NMDS", distance="bray")
 ```
 
     ## Run 0 stress 0.08043117 
-    ## Run 1 stress 0.08043116 
-    ## ... New best solution
-    ## ... Procrustes: rmse 3.899619e-06  max resid 1.007833e-05 
+    ## Run 1 stress 0.09477196 
+    ## Run 2 stress 0.09477231 
+    ## Run 3 stress 0.1212044 
+    ## Run 4 stress 0.08076339 
+    ## ... Procrustes: rmse 0.01052431  max resid 0.03239469 
+    ## Run 5 stress 0.08043117 
+    ## ... Procrustes: rmse 1.620297e-06  max resid 5.050868e-06 
     ## ... Similar to previous best
-    ## Run 2 stress 0.09477204 
-    ## Run 3 stress 0.1262108 
-    ## Run 4 stress 0.08616061 
-    ## Run 5 stress 0.1228545 
-    ## Run 6 stress 0.08043117 
-    ## ... Procrustes: rmse 1.126793e-06  max resid 2.792991e-06 
-    ## ... Similar to previous best
-    ## Run 7 stress 0.08616061 
-    ## Run 8 stress 0.08076339 
-    ## ... Procrustes: rmse 0.01055681  max resid 0.03249751 
+    ## Run 6 stress 0.08076341 
+    ## ... Procrustes: rmse 0.01057236  max resid 0.03255081 
+    ## Run 7 stress 0.08076341 
+    ## ... Procrustes: rmse 0.01057115  max resid 0.0325467 
+    ## Run 8 stress 0.1228545 
     ## Run 9 stress 0.08043117 
-    ## ... Procrustes: rmse 1.815697e-06  max resid 5.124952e-06 
+    ## ... Procrustes: rmse 5.401677e-06  max resid 1.406084e-05 
     ## ... Similar to previous best
-    ## Run 10 stress 0.08616061 
-    ## Run 11 stress 0.08616061 
-    ## Run 12 stress 0.08076338 
-    ## ... Procrustes: rmse 0.01053086  max resid 0.03241249 
-    ## Run 13 stress 0.1274325 
-    ## Run 14 stress 0.08076336 
-    ## ... Procrustes: rmse 0.01048289  max resid 0.03225614 
-    ## Run 15 stress 0.08076338 
-    ## ... Procrustes: rmse 0.01053502  max resid 0.03242653 
-    ## Run 16 stress 0.08076341 
-    ## ... Procrustes: rmse 0.01058483  max resid 0.03258892 
+    ## Run 10 stress 0.08076337 
+    ## ... Procrustes: rmse 0.01050651  max resid 0.0323358 
+    ## Run 11 stress 0.08076342 
+    ## ... Procrustes: rmse 0.01057821  max resid 0.03257023 
+    ## Run 12 stress 0.1274324 
+    ## Run 13 stress 0.08616061 
+    ## Run 14 stress 0.1320348 
+    ## Run 15 stress 0.08076336 
+    ## ... Procrustes: rmse 0.01047651  max resid 0.03223808 
+    ## Run 16 stress 0.08616061 
     ## Run 17 stress 0.08616061 
-    ## Run 18 stress 0.08616061 
-    ## Run 19 stress 0.08043117 
-    ## ... Procrustes: rmse 6.123898e-06  max resid 1.691309e-05 
-    ## ... Similar to previous best
-    ## Run 20 stress 0.08076344 
-    ## ... Procrustes: rmse 0.01060909  max resid 0.03266794 
-    ## *** Best solution repeated 4 times
+    ## Run 18 stress 0.08076341 
+    ## ... Procrustes: rmse 0.01057916  max resid 0.03257306 
+    ## Run 19 stress 0.1262108 
+    ## Run 20 stress 0.08076337 
+    ## ... Procrustes: rmse 0.01051715  max resid 0.0323707 
+    ## *** Best solution repeated 2 times
 
 ``` r
 plot_ordination(ps.prop, ord.nmds.bray, color="When", title="Bray NMDS")
 ```
 
-![](dada2_files/figure-gfm/unnamed-chunk-36-1.png)<!-- -->
+![](dada2_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
 
 ``` r
 top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
@@ -506,4 +513,4 @@ ps.top20 <- prune_taxa(top20, ps.top20)
 plot_bar(ps.top20, x="Day", fill="Family") + facet_wrap(~When, scales="free_x")
 ```
 
-![](dada2_files/figure-gfm/unnamed-chunk-37-1.png)<!-- -->
+![](dada2_files/figure-gfm/unnamed-chunk-38-1.png)<!-- -->
